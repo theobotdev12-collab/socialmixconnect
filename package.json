@@ -1,0 +1,23 @@
+{
+  "name": "socialmixconnect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theobotdev12-collab/socialmixconnect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/theobotdev12-collab/socialmixconnect/issues"
+  },
+  "homepage": "https://github.com/theobotdev12-collab/socialmixconnect#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.2"
+  }
+}

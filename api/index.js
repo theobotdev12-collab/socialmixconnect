@@ -166,11 +166,31 @@ export default async function handler(req, res) {
           image = data.avatar || image;
         }
       } else if (type === 'food') {
-        const { data, error } = await supabase.from('food_businesses').select('name, description, logo_url, images').eq('id', id).single();
+        const { data, error } = await supabase.from('food_businesses').select('name, description, logo_url, images, features, operating_hours, menu_items').eq('id', id).single();
         if (error) throw error;
         if (data) {
           title = data.name || title;
-          description = data.description || description;
+          
+          let richDesc = data.description ? data.description + ' ' : '';
+          
+          if (data.features && data.features.length > 0) {
+            richDesc += '✨ ' + data.features.join(', ') + '. ';
+          }
+          
+          if (data.operating_hours && typeof data.operating_hours === 'object') {
+            const hoursStr = Object.entries(data.operating_hours)
+              .filter(([_, time]) => time && time.toLowerCase() !== 'closed')
+              .map(([day, time]) => `${day.charAt(0).toUpperCase() + day.slice(1)}: ${time}`)
+              .join(' | ');
+            if (hoursStr) richDesc += '🕒 ' + hoursStr + '. ';
+          }
+          
+          if (data.menu_items && data.menu_items.length > 0) {
+            const topMenu = data.menu_items.slice(0, 3).map(m => `${m.name}`).join(', ');
+            richDesc += '🍽️ Menu: ' + topMenu + (data.menu_items.length > 3 ? '...' : '.');
+          }
+          
+          description = richDesc.trim() || description;
           image = data.logo_url || (data.images && data.images.length > 0 ? data.images[0] : image);
         }
       } else if (type === 'property') {

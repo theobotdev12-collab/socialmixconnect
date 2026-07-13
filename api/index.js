@@ -143,63 +143,77 @@ function renderHtml(ogTitle, ogDesc, ogImage, path) {
 }
 
 export default async function handler(req, res) {
-  const path = req.url || '/';
+  let path = req.url || '/';
   
   let title = DEFAULT_TITLE;
   let description = DEFAULT_DESC;
   let image = null;
+  let debugError = '';
 
   try {
-    const parts = path.split('/').filter(Boolean);
+    const cleanPath = path.split('?')[0];
+    const parts = cleanPath.split('/').filter(Boolean);
     const type = parts[0];
     const id = parts[1];
 
     if (type && id) {
       if (type === 'group') {
-        const { data } = await supabase.from('groups').select('name, description, avatar').eq('id', id).single();
+        const { data, error } = await supabase.from('groups').select('name, description, avatar').eq('id', id).single();
+        if (error) throw error;
         if (data) {
-          title = data.name ? \`Join "\${data.name}" on SocialMix!\` : title;
+          title = data.name ? `Join "${data.name}" on SocialMix!` : title;
           description = data.description || description;
           image = data.avatar || image;
         }
       } else if (type === 'food') {
-        const { data } = await supabase.from('food_businesses').select('name, description, logo_url, images').eq('id', id).single();
+        const { data, error } = await supabase.from('food_businesses').select('name, description, logo_url, images').eq('id', id).single();
+        if (error) throw error;
         if (data) {
           title = data.name || title;
           description = data.description || description;
           image = data.logo_url || (data.images && data.images.length > 0 ? data.images[0] : image);
         }
       } else if (type === 'property') {
-        const { data } = await supabase.from('properties').select('title, description, images').eq('id', id).single();
+        const { data, error } = await supabase.from('properties').select('title, description, images').eq('id', id).single();
+        if (error) throw error;
         if (data) {
           title = data.title || title;
           description = data.description || description;
           image = data.images && data.images.length > 0 ? data.images[0] : image;
         }
       } else if (type === 'product') {
-        const { data } = await supabase.from('products').select('title, description, images').eq('id', id).single();
+        const { data, error } = await supabase.from('products').select('title, description, images').eq('id', id).single();
+        if (error) throw error;
         if (data) {
           title = data.title || title;
           description = data.description || description;
           image = data.images && data.images.length > 0 ? data.images[0] : image;
         }
       } else if (type === 'tour') {
-        const { data } = await supabase.from('virtual_tours').select('property_title, description, thumbnail_url').eq('id', id).single();
+        const { data, error } = await supabase.from('virtual_tours').select('property_title, description, thumbnail_url').eq('id', id).single();
+        if (error) throw error;
         if (data) {
           title = data.property_title || title;
           description = data.description || description;
           image = data.thumbnail_url || image;
         }
       } else if (type === 'reel') {
-        const { data } = await supabase.from('doorbell_dreams').select('title, description').eq('id', id).single();
+        const { data, error } = await supabase.from('doorbell_dreams').select('title, description').eq('id', id).single();
+        if (error) throw error;
         if (data) {
-          title = \`🔔 \${data.title}\` || title;
+          title = `🔔 ${data.title}` || title;
           description = data.description || description;
         }
       }
     }
   } catch (error) {
     console.error('Error fetching OG data:', error);
+    debugError = String(error.message || error);
+  }
+
+  // Inject debug info into description if we hit an error so we can see it in testing
+  if (debugError) {
+    description = `Error: ${debugError}`;
   }
 
   const html = renderHtml(title, description, image, path);

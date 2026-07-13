@@ -111,8 +111,8 @@ function renderHtml(ogTitle, ogDesc, ogImage, path) {
         <h1>SocialMix</h1>
         <p>Connecting you to the content...</p>
         
-        <a id="open-app-btn" href="#" class="btn">Open App</a>
-        <a id="play-store-btn" href="https://play.google.com/store/apps/details?id=com.socialmix.app" class="btn fallback-btn">Get it on Google Play</a>
+        <a id="open-app-btn" href="#" class="btn">View on SocialMix</a>
+        <a id="play-store-btn" href="https://play.google.com/store/apps/details?id=com.socialmix.app" class="btn fallback-btn">Download Socialmix On Playstore</a>
     </div>
 
     <script>

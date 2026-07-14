@@ -7,140 +7,261 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const DEFAULT_TITLE = 'SocialMix';
 const DEFAULT_DESC = 'Connecting you to the content...';
 
-// Simple HTML template builder
-function renderHtml(ogTitle, ogDesc, ogImage, path) {
-  // Use a fallback image if none provided
-  const imageTag = ogImage ? `<meta property="og:image" content="${ogImage}">\n    <meta name="twitter:image" content="${ogImage}">` : '';
-  
+// Button label per content type — mirrors WhatsApp's "Join Group" pattern
+function getPrimaryLabel(type) {
+  const labels = {
+    group:    '👥 Join Group on SocialMix',
+    food:     '🍽️ View Restaurant on SocialMix',
+    property: '🏠 View Property on SocialMix',
+    product:  '🛍️ View Product on SocialMix',
+    agro:     '🌿 View Listing on SocialMix',
+    tour:     '🎥 View Virtual Tour on SocialMix',
+    reel:     '▶️ Watch Reel on SocialMix',
+    user:     '👤 View Profile on SocialMix',
+    chat:     '💬 Open Chat on SocialMix',
+  };
+  return labels[type] || '📱 View on SocialMix';
+}
+
+// Premium HTML template builder
+function renderHtml(ogTitle, ogDesc, ogImage, path, contentType) {
+  const imageTag = ogImage
+    ? `<meta property="og:image" content="${ogImage}">\n    <meta name="twitter:image" content="${ogImage}">`
+    : '';
+
+  const primaryLabel = getPrimaryLabel(contentType);
+
+  // Sanitise text to prevent XSS via OG data
+  const safe = (str) => String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const heroSection = ogImage
+    ? `<div class="hero"><img src="${safe(ogImage)}" alt="${safe(ogTitle)}" /></div>`
+    : `<div class="hero-placeholder"><span>S</span></div>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${ogTitle}</title>
-    
-    <!-- Open Graph / Facebook -->
+    <title>${safe(ogTitle)} · SocialMix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://socialmixconnect.vercel.app${path}">
-    <meta property="og:title" content="${ogTitle}">
-    <meta property="og:description" content="${ogDesc}">
+    <meta property="og:title" content="${safe(ogTitle)}">
+    <meta property="og:description" content="${safe(ogDesc)}">
+    <meta property="og:site_name" content="SocialMix">
     ${imageTag}
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://socialmixconnect.vercel.app${path}">
-    <meta name="twitter:title" content="${ogTitle}">
-    <meta name="twitter:description" content="${ogDesc}">
+    <meta name="twitter:title" content="${safe(ogTitle)}">
+    <meta name="twitter:description" content="${safe(ogDesc)}">
 
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a0533 0%, #2d0a6b 50%, #1a0533 100%);
+            min-height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f9fafb;
-            color: #1f2937;
-            text-align: center;
             padding: 20px;
         }
-        .container {
-            max-width: 400px;
+
+        .card {
             background: white;
-            padding: 40px 30px;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border-radius: 28px;
+            max-width: 420px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+            animation: slideUp 0.4s ease;
         }
-        .logo-container {
-            width: 88px;
-            height: 88px;
-            background-color: #8B5CF6; /* SocialMix Purple */
-            border-radius: 22px;
-            margin: 0 auto 24px auto;
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Hero image ── */
+        .hero {
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+            background: #1a0533;
+        }
+        .hero img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .hero-placeholder {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 16px rgba(139, 92, 246, 0.3);
-        }
-        .logo-text {
+            font-size: 72px;
+            font-weight: 900;
             color: white;
-            font-size: 40px;
-            font-weight: bold;
             font-family: serif;
         }
+
+        /* ── Content body ── */
+        .body {
+            padding: 28px 28px 32px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f3f0ff;
+            color: #7c3aed;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+        }
+
+        .badge img {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
         h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
+            font-size: 22px;
             font-weight: 700;
+            color: #111827;
+            line-height: 1.3;
+            margin-bottom: 10px;
         }
-        p {
-            font-size: 15px;
+
+        .desc {
+            font-size: 14px;
             color: #6b7280;
-            margin-bottom: 32px;
-            line-height: 1.5;
+            line-height: 1.6;
+            margin-bottom: 28px;
         }
-        .btn {
+
+        /* ── Buttons ── */
+        .btn-primary {
             display: block;
-            background-color: #8B5CF6;
+            width: 100%;
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
             color: white;
             text-decoration: none;
-            padding: 16px 20px;
-            border-radius: 12px;
-            font-weight: 600;
+            text-align: center;
+            padding: 17px 20px;
+            border-radius: 14px;
+            font-weight: 700;
             font-size: 16px;
-            margin-bottom: 16px;
-            transition: opacity 0.2s;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+            transition: transform 0.15s, box-shadow 0.15s;
+            letter-spacing: 0.2px;
         }
-        .btn:active {
-            opacity: 0.8;
+        .btn-primary:active {
+            transform: scale(0.97);
+            box-shadow: 0 4px 10px rgba(124,58,237,0.25);
         }
-        .fallback-btn {
-            background-color: transparent;
-            color: #4b5563;
+
+        .btn-secondary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
             border: 2px solid #e5e7eb;
+            color: #374151;
+            text-decoration: none;
+            text-align: center;
+            padding: 15px 20px;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: background 0.15s;
         }
+        .btn-secondary:hover { background: #f9fafb; }
+
+        .playstore-logo {
+            width: 22px;
+            height: 22px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 14px 28px 20px;
+            border-top: 1px solid #f3f4f6;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .footer strong { color: #7c3aed; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo-container">
-            <span class="logo-text">S</span>
+    <div class="card">
+        ${heroSection}
+
+        <div class="body">
+            <div class="badge">
+                <img src="https://ui-avatars.com/api/?name=S&background=7c3aed&color=fff&size=32&bold=true" alt="S">
+                SocialMix
+            </div>
+
+            <h1>${safe(ogTitle)}</h1>
+            <p class="desc">${safe(ogDesc)}</p>
+
+            <a id="open-app-btn" href="#" class="btn-primary">${primaryLabel}</a>
+
+            <a id="play-store-btn"
+               href="https://play.google.com/store/apps/details?id=com.socialmix.app"
+               class="btn-secondary">
+                <!-- Google Play icon -->
+                <svg class="playstore-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M48 59.5L288 256 48 452.5V59.5z" fill="#34a853"/>
+                  <path d="M336 208l-53 48 53 48 96-48-96-48z" fill="#fbbc04"/>
+                  <path d="M48 59.5l240 196.5-53 48L48 59.5z" fill="#4285f4"/>
+                  <path d="M48 452.5l187-245 53 48L48 452.5z" fill="#ea4335"/>
+                </svg>
+                Download SocialMix on Play Store
+            </a>
         </div>
-        <h1>SocialMix</h1>
-        <p>Connecting you to the content...</p>
-        
-        <a id="open-app-btn" href="#" class="btn">View on SocialMix</a>
-        <a id="play-store-btn" href="https://play.google.com/store/apps/details?id=com.socialmix.app" class="btn fallback-btn">Download Socialmix On Playstore</a>
+
+        <div class="footer">
+            <strong>socialmixconnect.vercel.app</strong> · Connect. Discover. Share.
+        </div>
     </div>
 
     <script>
-        // 1. Get the path (e.g. /property/123)
         const path = window.location.pathname + window.location.search;
-        
-        // 2. Play Store URL with deferred referrer
         const playStoreUrl = \`https://play.google.com/store/apps/details?id=com.socialmix.app&referrer=\${encodeURIComponent(path)}\`;
         document.getElementById('play-store-btn').href = playStoreUrl;
 
-        // 3. Android Intent URI
-        // This attempts to open the app directly. If it fails, S.browser_fallback_url redirects to Play Store.
         const pathNoSlash = path.startsWith('/') ? path.substring(1) : path;
         const intentLink = \`intent://\${pathNoSlash}#Intent;scheme=socialmix;package=com.socialmix.app;S.browser_fallback_url=\${encodeURIComponent(playStoreUrl)};end;\`;
         document.getElementById('open-app-btn').href = intentLink;
 
-        // 4. Auto-redirect logic for mobile devices
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-            setTimeout(() => {
-                window.location.href = intentLink;
-            }, 300);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        if (isAndroid) {
+            setTimeout(() => { window.location.href = intentLink; }, 500);
         }
     </script>
 </body>
 </html>`;
 }
+
 
 export default async function handler(req, res) {
   let path = req.url || '/';
@@ -236,7 +357,8 @@ export default async function handler(req, res) {
     description = `Error: ${debugError}`;
   }
 
-  const html = renderHtml(title, description, image, path);
+  const contentType = (req.url || '/').split('?')[0].split('/').filter(Boolean)[0] || '';
+  const html = renderHtml(title, description, image, path, contentType);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300'); // Edge cache for 1 minute

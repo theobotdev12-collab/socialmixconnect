@@ -1,0 +1,6 @@
+node_modules/
+.preview/
+.workbuddy-ai/
+.vercel/
+.DS_Store
+*.log

@@ -1,13 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import fs from 'node:fs';
+import nodePath from 'node:path';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://ogzgimhnunkdhhkpwqbm.supabase.co';
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nemdpbWhudW5rZGhoa3B3cWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Mjc3NDEsImV4cCI6MjA4ODIwMzc0MX0.PMuv-YKKvmE_vtWxw4CCjoy8qHzLjHo-dgM0StFdkKQ';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const DEFAULT_TITLE = 'SocialMix';
-const DEFAULT_DESC = 'Connecting you to the content...';
-const APP_HOST = 'socialmixconnect.vercel.app';
+const DEFAULT_DESC = 'Socialmix is the social messaging app that keeps you connected online and even when there is no internet, with survival mode features. Chat with people nearby, join offline chatrooms and listen to local radio, then discover food, products, services and more around you. Join more than 10,000 people using it.';
+const APP_HOST = 'socialmixconnect.com';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.socialmix.app';
+const DEFAULT_IMAGE = `https://${APP_HOST}/og-image.png`;
 
 // Button label per content type — mirrors WhatsApp's "Join Group" pattern
 function getPrimaryLabel(type) {
@@ -37,18 +40,21 @@ const WALLPAPER = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000
 
 // WhatsApp-style landing page builder
 function renderHtml(ogTitle, ogDesc, ogImage, path, contentType) {
-  const safeTitle = safe(ogTitle);
-  const safeDesc = safe(ogDesc);
-  const safeImage = ogImage ? safe(ogImage) : '';
+  const safeTitle = safe(ogTitle || DEFAULT_TITLE);
+  const safeDesc = safe(ogDesc || DEFAULT_DESC);
   const storeUrl = `${PLAY_STORE_URL}&referrer=${encodeURIComponent(path)}`;
   const primaryLabel = getPrimaryLabel(contentType);
 
-  const imageTag = safeImage
-    ? `<meta property="og:image" content="${safeImage}">\n    <meta name="twitter:image" content="${safeImage}">\n    <meta property="og:image:alt" content="${safeTitle}">`
-    : '';
+  // Guarantee absolute URL for WhatsApp / social preview scrapers
+  let imageUrl = ogImage || DEFAULT_IMAGE;
+  if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+    imageUrl = `https://${APP_HOST}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+  }
+  const safeImage = safe(imageUrl);
+  const imageMime = safeImage.endsWith('.jpg') || safeImage.endsWith('.jpeg') ? 'image/jpeg' : 'image/png';
 
   const previewMedia = safeImage
-    ? `<img class="lc-img" src="${safeImage}" alt="${safeTitle}" loading="eager" decoding="async">`
+    ? `<img class="lc-img" src="${safeImage}" alt="${safeTitle}" loading="eager" decoding="async" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';">`
     : `<div class="lc-img lc-img-ph"><span>S</span></div>`;
 
   return `<!DOCTYPE html>
@@ -56,22 +62,34 @@ function renderHtml(ogTitle, ogDesc, ogImage, path, contentType) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>${safeTitle} · SocialMix</title>
+    <title>${safeTitle === 'SocialMix' ? 'SocialMix · Connect Online & Offline' : `${safeTitle} · SocialMix`}</title>
     <meta name="theme-color" content="#4C1D95">
     <meta name="description" content="${safeDesc}">
 
-    <!-- Open Graph -->
+    <!-- Open Graph / WhatsApp Preview Meta Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://${APP_HOST}${path}">
-    <meta property="og:title" content="${safeTitle}">
-    <meta property="og:description" content="${safeDesc}">
     <meta property="og:site_name" content="SocialMix">
-    ${imageTag}
+    <meta property="og:url" content="https://${APP_HOST}${path}">
+    <meta property="og:title" content="${safeTitle === 'SocialMix' ? 'SocialMix — Connect Online & Offline' : safeTitle}">
+    <meta property="og:description" content="${safeDesc}">
+    <meta property="og:image" content="${safeImage}">
+    <meta property="og:image:secure_url" content="${safeImage}">
+    <meta property="og:image:type" content="${imageMime}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="${safeTitle}">
+    <meta property="og:locale" content="en_US">
 
-    <!-- Twitter -->
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="${safeTitle}">
+    <meta name="twitter:domain" content="${APP_HOST}">
+    <meta name="twitter:url" content="https://${APP_HOST}${path}">
+    <meta name="twitter:title" content="${safeTitle === 'SocialMix' ? 'SocialMix — Connect Online & Offline' : safeTitle}">
     <meta name="twitter:description" content="${safeDesc}">
+    <meta name="twitter:image" content="${safeImage}">
+
+    <!-- Canonical Link -->
+    <link rel="canonical" href="https://${APP_HOST}${path}">
 
     <style>
         /* SocialMix brand palette, mapped onto WhatsApp's UI roles */
@@ -679,6 +697,24 @@ function renderHtml(ogTitle, ogDesc, ogImage, path, contentType) {
 
 export default async function handler(req, res) {
   let path = req.url || '/';
+  const cleanPath = path.split('?')[0];
+
+  // Directly serve the default WhatsApp / Open Graph image
+  if (cleanPath === '/og-image.png') {
+    try {
+      const p1 = nodePath.join(process.cwd(), 'public', 'og-image.png');
+      const p2 = nodePath.join(process.cwd(), 'og-image.png');
+      const target = fs.existsSync(p1) ? p1 : (fs.existsSync(p2) ? p2 : null);
+      if (target) {
+        const imageBuffer = fs.readFileSync(target);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
+        return res.status(200).send(imageBuffer);
+      }
+    } catch (err) {
+      console.error('Error serving og-image.png:', err);
+    }
+  }
   
   let title = DEFAULT_TITLE;
   let description = DEFAULT_DESC;
